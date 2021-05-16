@@ -13,12 +13,15 @@
 #import <FlipperKit/FlipperConnection.h>
 #import <FlipperKit/FlipperResponder.h>
 #import <FlipperKit/SKMacros.h>
+#import <FlipperKitLayoutHelpers/SKNodeDescriptor.h>
+#import <FlipperKitLayoutHelpers/SKSearchResultNode.h>
+#import <FlipperKitLayoutHelpers/SKTapListener.h>
+#import <FlipperKitLayoutHelpers/SKTapListenerImpl.h>
 #import <mutex>
 #import "SKDescriptorMapper.h"
-#import "SKNodeDescriptor.h"
-#import "SKSearchResultNode.h"
-#import "SKTapListener.h"
-#import "SKTapListenerImpl.h"
+
+NSObject* parseLayoutEditorMessage(NSObject* message);
+NSObject* flattenLayoutEditorMessage(NSObject* field);
 
 @implementation FlipperKitLayoutPlugin {
   NSMapTable<NSString*, id>* _trackedObjects;
@@ -143,15 +146,6 @@
                   responder);
             }];
 
-  [connection receive:@"isConsoleEnabled"
-            withBlock:^(NSDictionary* params, id<FlipperResponder> responder) {
-              FlipperPerformBlockOnMainThread(
-                  ^{
-                    [responder success:@{@"isEnabled" : @NO}];
-                  },
-                  responder);
-            }];
-
   [connection receive:@"getSearchResults"
             withBlock:^(NSDictionary* params, id<FlipperResponder> responder) {
               FlipperPerformBlockOnMainThread(
@@ -164,10 +158,15 @@
 }
 
 - (void)didDisconnect {
-  // Clear the last highlight if there is any
-  [self onCallSetHighlighted:nil withResponder:nil];
-  // Disable search if it is active
-  [self onCallSetSearchActive:NO withConnection:nil];
+  // removeFromSuperlayer (SKHighlightOverlay) needs to be called on main thread
+  FlipperPerformBlockOnMainThread(
+      ^{
+        // Clear the last highlight if there is any
+        [self onCallSetHighlighted:nil withResponder:nil];
+        // Disable search if it is active
+        [self onCallSetSearchActive:NO withConnection:nil];
+      },
+      nil);
 }
 
 - (void)onCallGetRoot:(id<FlipperResponder>)responder {
@@ -241,6 +240,8 @@
     return;
   }
 
+  value = parseLayoutEditorMessage(value);
+
   SKNodeDescriptor* descriptor =
       [_descriptorMapper descriptorForClass:[node class]];
 
@@ -263,6 +264,45 @@
     [connection send:@"invalidateWithData"
           withParams:@{@"nodes" : nodesForInvalidation}];
   }
+}
+
+/**
+ Layout editor messages are tagged with the types they contain, allowing for
+ heterogeneous NSArray and NSDictionary supported by Android and iOS. The method
+ parseLayoutEditorMessage traverses the message and flattens the messages to
+ their original types.
+ */
+NSObject* parseLayoutEditorMessage(NSObject* message) {
+  if ([message isKindOfClass:[NSDictionary class]]) {
+    NSDictionary* wrapper = (NSDictionary*)message;
+    if (wrapper[@"kind"]) {
+      NSObject* newData = wrapper[@"data"];
+      return flattenLayoutEditorMessage(newData);
+    }
+  }
+  return message;
+}
+
+NSObject* flattenLayoutEditorMessage(NSObject* field) {
+  if ([field isKindOfClass:[NSDictionary class]]) {
+    NSDictionary* wrapper = (NSDictionary*)field;
+    NSMutableDictionary* dictionary =
+        [[NSMutableDictionary alloc] initWithCapacity:[wrapper count]];
+    for (NSString* key in wrapper) {
+      NSObject* value = wrapper[key];
+      dictionary[key] = parseLayoutEditorMessage(value);
+    }
+    return dictionary;
+  } else if ([field isKindOfClass:[NSArray class]]) {
+    NSArray* wrapper = (NSArray*)field;
+    NSMutableArray* array =
+        [[NSMutableArray alloc] initWithCapacity:[wrapper count]];
+    for (NSObject* value in wrapper) {
+      [array addObject:parseLayoutEditorMessage(value)];
+    }
+    return array;
+  }
+  return field;
 }
 
 - (void)onCallGetSearchResults:(NSString*)query
@@ -321,17 +361,30 @@
     __block id<NSObject> rootNode = _rootNode;
 
     [_tapListener listenForTapWithBlock:^(CGPoint touchPoint) {
-      SKTouch* touch = [[SKTouch alloc]
-            initWithTouchPoint:touchPoint
-                  withRootNode:rootNode
-          withDescriptorMapper:self->_descriptorMapper
-               finishWithBlock:^(NSArray<NSString*>* path) {
-                 [connection send:@"select" withParams:@{@"path" : path}];
-               }];
+      SKTouch* touch =
+          [[SKTouch alloc] initWithTouchPoint:touchPoint
+                                 withRootNode:rootNode
+                         withDescriptorMapper:self->_descriptorMapper
+                              finishWithBlock:^(id<NSObject> node) {
+                                [self updateNodeReference:node];
+                              }];
 
       SKNodeDescriptor* descriptor =
           [self->_descriptorMapper descriptorForClass:[rootNode class]];
       [descriptor hitTest:touch forNode:rootNode];
+      [touch retrieveSelectTree:^(NSDictionary* tree) {
+        NSMutableArray* path = [NSMutableArray new];
+        NSDictionary* subtree = tree;
+        NSEnumerator* enumerator = [tree keyEnumerator];
+        id nodeId;
+        while ((nodeId = [enumerator nextObject])) {
+          subtree = subtree[nodeId];
+          [path addObject:nodeId];
+          enumerator = [subtree keyEnumerator];
+        }
+        [connection send:@"select"
+              withParams:@{@"path" : path, @"tree" : tree}];
+      }];
     }];
   } else {
     [_tapListener unmount];
@@ -369,10 +422,6 @@
       ^{
         [self _reportInvalidatedObjects];
       });
-}
-
-- (void)invalidateRootNode {
-  [self invalidateNode:_rootNode];
 }
 
 - (void)_reportInvalidatedObjects {
@@ -470,6 +519,7 @@
 
   NSMutableArray* attributes = [NSMutableArray new];
   NSMutableDictionary* data = [NSMutableDictionary new];
+  NSMutableDictionary* extraInfo = [NSMutableDictionary new];
 
   const auto* nodeAttributes = [nodeDescriptor attributesForNode:node];
   for (const SKNamed<NSString*>* namedPair in nodeAttributes) {
@@ -488,6 +538,11 @@
     data[namedPair.name] = namedPair.value;
   }
 
+  const auto* nodeExtraInfo = [nodeDescriptor extraInfoForNode:node];
+  for (const SKNamed<NSDictionary*>* namedPair in nodeExtraInfo) {
+    extraInfo[namedPair.name] = namedPair.value;
+  }
+
   NSMutableArray* children = [self getChildrenForNode:node
                                        withDescriptor:nodeDescriptor];
 
@@ -500,6 +555,7 @@
     @"attributes" : attributes,
     @"data" : data,
     @"decoration" : [nodeDescriptor decorationForNode:node] ?: @"(unknown)",
+    @"extraInfo" : extraInfo,
   };
 
   return nodeDic;

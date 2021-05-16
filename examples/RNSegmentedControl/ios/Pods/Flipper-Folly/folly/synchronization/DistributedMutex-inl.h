@@ -1048,7 +1048,7 @@ inline void recordTimedWaiterAndClearTimedBit(
 template <typename Atomic>
 void wakeTimedWaiters(Atomic* state, bool timedWaiters) {
   if (UNLIKELY(timedWaiters)) {
-    atomic_notify_one(state);
+    folly::atomic_notify_one(state); // evade ADL
   }
 }
 
@@ -1678,7 +1678,10 @@ auto timedLock(Atomic& state, Deadline deadline, MakeProxy proxy) {
 
     // wait on the futex until signalled, if we get a timeout, the try_lock
     // fails
-    auto result = atomic_wait_until(&state, previous | data, deadline);
+    auto result = folly::atomic_wait_until( // evade ADL
+        &state,
+        previous | data,
+        deadline);
     if (result == std::cv_status::timeout) {
       return proxy(nullptr, std::uintptr_t{0}, false);
     }

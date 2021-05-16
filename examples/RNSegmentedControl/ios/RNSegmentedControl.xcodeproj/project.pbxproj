@@ -210,6 +210,7 @@
 				00E356EB1AD99517003FC87E /* Frameworks */,
 				00E356EC1AD99517003FC87E /* Resources */,
 				527B22E825E61CA0E59EA28F /* [CP] Copy Pods Resources */,
+				7DEA82288E1DAADA90CF0AA2 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -232,6 +233,7 @@
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				7F8174D19F6ED789F434275A /* [CP] Copy Pods Resources */,
+				9621E9B315ECC72A0319F8DC /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -475,6 +477,24 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-RNSegmentedControl-RNSegmentedControlTests/Pods-RNSegmentedControl-RNSegmentedControlTests-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
+		7DEA82288E1DAADA90CF0AA2 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-RNSegmentedControl-RNSegmentedControlTests/Pods-RNSegmentedControl-RNSegmentedControlTests-frameworks.sh",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OpenSSL/OpenSSL.framework/OpenSSL",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OpenSSL.framework",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-RNSegmentedControl-RNSegmentedControlTests/Pods-RNSegmentedControl-RNSegmentedControlTests-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
 		7F8174D19F6ED789F434275A /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -491,6 +511,24 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-RNSegmentedControl/Pods-RNSegmentedControl-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		9621E9B315ECC72A0319F8DC /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-RNSegmentedControl/Pods-RNSegmentedControl-frameworks.sh",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OpenSSL/OpenSSL.framework/OpenSSL",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OpenSSL.framework",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-RNSegmentedControl/Pods-RNSegmentedControl-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 		A186085614BBEC48886AC787 /* [CP] Check Pods Manifest.lock */ = {
