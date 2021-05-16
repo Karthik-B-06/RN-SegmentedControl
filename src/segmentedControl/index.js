@@ -50,6 +50,10 @@ const SegmentedControl = (props) => {
     [props?.onChange]
   );
 
+  const customName = (tab) => {
+    return props?.customNames[tab];
+  };
+
   useEffect(() => {
     // If phone is set to RTL, make sure the animation does the correct transition.
     const transitionMultiplier = props?.isRTL ? -1 : 1;
@@ -81,6 +85,7 @@ const SegmentedControl = (props) => {
         {
           paddingVertical: props?.paddingVertical,
         },
+        props?.containerStyle,
       ]}
     >
       <Animated.View
@@ -97,6 +102,7 @@ const SegmentedControl = (props) => {
               props?.activeSegmentBackgroundColor
             ),
             ...shadow,
+            ...props?.tabStyle,
           },
           {
             transform: [
@@ -137,7 +143,7 @@ const SegmentedControl = (props) => {
                     },
               ]}
             >
-              {tab}
+              {props?.customNames ? customName(tab) : tab}
             </Text>
           </TouchableOpacity>
         );
@@ -172,6 +178,8 @@ const styles = StyleSheet.create({
 
 SegmentedControl.propTypes = {
   tabs: PropTypes.arrayOf(PropTypes.string).isRequired,
+  tabStyle: PropTypes.object,
+  customNames: PropTypes.object,
   onChange: PropTypes.func.isRequired,
   currentIndex: PropTypes.number.isRequired,
   segmentedControlBackgroundColor: PropTypes.string,
@@ -200,6 +208,7 @@ SegmentedControl.propTypes = {
 
 SegmentedControl.defaultProps = {
   tabs: [],
+  customNames: null,
   onChange: () => {},
   currentIndex: 0,
   segmentedControlBackgroundColor: null,
